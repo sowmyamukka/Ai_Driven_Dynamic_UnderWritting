@@ -43,7 +43,7 @@ if 'logged_in' not in st.session_state:
 if 'current_user' not in st.session_state:
     st.session_state.current_user = None
 
-# --- Custom Styling for Auth Card & Required Document Box ---
+# --- Custom Styling for UI & Containers ---
 st.markdown("""
 <style>
     .auth-card {
@@ -70,7 +70,6 @@ st.markdown("""
         margin-bottom: 20px;
     }
     
-    /* Document Guidance Card Box Style (Matching Screenshot) */
     .doc-box {
         background-color: #0b1329;
         border: 1px dashed #2563eb;
@@ -84,9 +83,6 @@ st.markdown("""
         font-weight: 700;
         font-size: 1.05rem;
         margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
     }
     .doc-box ul {
         margin: 0;
@@ -94,8 +90,19 @@ st.markdown("""
         color: #cbd5e1;
         font-size: 0.93rem;
     }
-    .doc-box li {
-        margin-bottom: 4px;
+
+    .arch-card {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 15px;
+    }
+    .arch-header {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #38bdf8;
+        margin-bottom: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -136,7 +143,7 @@ scoring_agent = DummyScoringAgent()
 
 
 # ==============================================================================
-# CENTERED LOGIN & SIGNUP SCREEN
+# CENTERED LOGIN & SIGNUP SCREEN (FIXED WITH ST.FORM)
 # ==============================================================================
 if not st.session_state.logged_in:
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -155,53 +162,59 @@ if not st.session_state.logged_in:
         # --- LOGIN TAB ---
         with auth_tab1:
             st.markdown("<br>", unsafe_allow_html=True)
-            login_username = st.text_input("Username", key="login_user", placeholder="e.g. mowa")
-            login_password = st.text_input("Password", type="password", key="login_pass", placeholder="••••••••")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("🚀 Login to Portal", type="primary", use_container_width=True):
-                username_clean = login_username.strip().lower()
-                if username_clean in st.session_state.user_db:
-                    stored_hash = st.session_state.user_db[username_clean]["password"]
-                    if check_hashes(login_password, stored_hash):
-                        st.session_state.logged_in = True
-                        st.session_state.current_user = username_clean
-                        st.toast(f"Welcome back, {st.session_state.user_db[username_clean]['name']}! 🎉", icon="✅")
-                        st.rerun()
+            with st.form("login_form", clear_on_submit=False):
+                login_username = st.text_input("Username", key="login_user", placeholder="e.g. mahi")
+                login_password = st.text_input("Password", type="password", key="login_pass", placeholder="••••••••")
+                st.markdown("<br>", unsafe_allow_html=True)
+                login_submitted = st.form_submit_button("🚀 Login to Portal", type="primary", use_container_width=True)
+                
+                if login_submitted:
+                    username_clean = login_username.strip().lower()
+                    if username_clean in st.session_state.user_db:
+                        stored_hash = st.session_state.user_db[username_clean]["password"]
+                        if check_hashes(login_password, stored_hash):
+                            st.session_state.logged_in = True
+                            st.session_state.current_user = username_clean
+                            st.toast(f"Welcome back, {st.session_state.user_db[username_clean]['name']}! 🎉", icon="✅")
+                            st.rerun()
+                        else:
+                            st.error("Incorrect Password! Please try again.")
                     else:
-                        st.error("Incorrect Password! Please try again.")
-                else:
-                    st.error("Username not found! Please Sign Up first.")
+                        st.error("Username not found! Please Sign Up first.")
 
-        # --- SIGNUP TAB ---
+        # --- SIGNUP TAB (FIXED WITH ST.FORM) ---
         with auth_tab2:
             st.markdown("<br>", unsafe_allow_html=True)
-            new_name = st.text_input("Full Name", placeholder="e.g. Rahul Sharma")
-            new_username = st.text_input("Choose Username", key="signup_user", placeholder="e.g. rahul123")
-            new_email = st.text_input("Gmail / Email Address", placeholder="e.g. rahul@gmail.com")
-            new_password = st.text_input("Choose Password", type="password", key="signup_pass")
-            confirm_password = st.text_input("Confirm Password", type="password")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("✨ Create Account", type="primary", use_container_width=True):
-                clean_new_user = new_username.strip().lower()
-                clean_email = new_email.strip()
+            with st.form("signup_form", clear_on_submit=False):
+                new_name = st.text_input("Full Name", key="su_name", placeholder="e.g. Sowmya Mukka")
+                new_username = st.text_input("Choose Username", key="su_user", placeholder="e.g. somu")
+                new_email = st.text_input("Gmail / Email Address", key="su_email", placeholder="e.g. sowmya143@gmail.com")
+                new_password = st.text_input("Choose Password", type="password", key="su_pass")
+                confirm_password = st.text_input("Confirm Password", type="password", key="su_confirm")
                 
-                if not new_name or not clean_new_user or not new_password or not clean_email:
-                    st.error("Please fill in all mandatory fields!")
-                elif not is_valid_email(clean_email):
-                    st.error("Please enter a valid Email address (e.g. user@gmail.com)!")
-                elif new_password != confirm_password:
-                    st.error("Passwords do not match!")
-                elif clean_new_user in st.session_state.user_db:
-                    st.error("Username already exists! Choose another username.")
-                else:
-                    st.session_state.user_db[clean_new_user] = {
-                        "password": make_hashes(new_password),
-                        "email": clean_email,
-                        "name": new_name
-                    }
-                    st.success("Account created successfully! Switch to Login tab.")
+                st.markdown("<br>", unsafe_allow_html=True)
+                signup_submitted = st.form_submit_button("✨ Create Account", type="primary", use_container_width=True)
+                
+                if signup_submitted:
+                    clean_name = new_name.strip() if new_name else ""
+                    clean_new_user = new_username.strip().lower() if new_username else ""
+                    clean_email = new_email.strip() if new_email else ""
+                    
+                    if not clean_name or not clean_new_user or not new_password or not clean_email or not confirm_password:
+                        st.error("Please fill in all mandatory fields!")
+                    elif not is_valid_email(clean_email):
+                        st.error("Please enter a valid Email address (e.g. user@gmail.com)!")
+                    elif new_password != confirm_password:
+                        st.error("Passwords do not match!")
+                    elif clean_new_user in st.session_state.user_db:
+                        st.error("Username already exists! Choose another username.")
+                    else:
+                        st.session_state.user_db[clean_new_user] = {
+                            "password": make_hashes(new_password),
+                            "email": clean_email,
+                            "name": clean_name
+                        }
+                        st.success("🎉 Account created successfully! Please switch to Login tab.")
 
 
 # ==============================================================================
@@ -210,7 +223,6 @@ if not st.session_state.logged_in:
 else:
     user_info = st.session_state.user_db[st.session_state.current_user]
     
-    # Sidebar Session Control
     st.sidebar.markdown(f"### 👤 User Account")
     st.sidebar.info(f"**Name:** {user_info['name']}\n\n**Email:** {user_info['email']}")
     if st.sidebar.button("🔒 Logout", use_container_width=True):
@@ -225,7 +237,6 @@ else:
 
     with tab1:
         st.subheader("1. Applicant Registration & Consent")
-        
         col_reg1, col_reg2 = st.columns(2)
         with col_reg1:
             user_email = st.text_input("📧 Email Address for Application Records:", value=user_info['email'])
@@ -244,7 +255,6 @@ else:
                 "💼 Salaried / Standard Applicant"
             ])
             
-            # --- Dynamic Document Intake Box (Identical to Image Design) ---
             if "Student" in applicant_type:
                 st.markdown("""
                 <div class="doc-box">
@@ -360,9 +370,41 @@ else:
                     )
 
     with tab2:
-        st.subheader("📈 Dynamic Re-Scoring Engine")
-        st.info("Post-disbursement behavior tracker.")
+        st.subheader("📈 Post-Disbursement Dynamic Behavioral Re-Scoring")
+        r_col1, r_col2 = st.columns([1, 1])
+        with r_col1:
+            st.markdown("#### ⚡ Real-Time Behavioral Triggers")
+            month_count = st.slider("Simulated Months Post-Disbursement", 1, 12, 6)
+            upi_volume = st.slider("Monthly Average UPI Transactions Count", 10, 300, 85)
+            utility_delays = st.slider("Utility / Recharge Delays (Last 3 Months)", 0, 10, 1)
+            savings_inflow = st.slider("Monthly Average Savings Rate (% of Income)", 0, 50, 18)
+
+            base_rescore = 620 + (upi_volume * 0.4) - (utility_delays * 25) + (savings_inflow * 3.2)
+            final_rescore = int(max(300, min(900, base_rescore)))
+            delta_val = final_rescore - 620
+            st.metric("Updated Dynamic Credit Score", f"{final_rescore} / 900", delta=f"{delta_val} Points")
+
+        with r_col2:
+            st.markdown("#### 📊 6-Month Score Trajectory")
+            months = [f"Month {i}" for i in range(1, month_count + 1)]
+            np.random.seed(42)
+            scores_trend = [int(620 + (i * (delta_val / month_count)) + np.random.randint(-10, 10)) for i in range(1, month_count + 1)]
+
+            df_trend = pd.DataFrame({"Month": months, "Credit Score": scores_trend})
+            fig_trend = px.line(df_trend, x="Month", y="Credit Score", markers=True, title="Behavioral Score Trajectory Over Time")
+            fig_trend.update_traces(line_color="#38bdf8", line_width=3)
+            fig_trend.update_layout(template="plotly_dark", height=320)
+            st.plotly_chart(fig_trend, use_container_width=True)
 
     with tab3:
-        st.subheader("📊 Bias & Governance")
-        st.success("DPDP Act 2023 & RBI Fair Lending Practices Verified.")
+        st.subheader("📊 System Architecture & Governance Framework")
+        st.markdown("### 🏛️ Multi-Agent System Architecture Flow")
+        a1, a2, a3, a4 = st.columns(4)
+        with a1:
+            st.markdown("""<div class="arch-card"><div class="arch-header">1. Document Agent</div><p style="color: #94a3b8; font-size: 0.85rem;">• EasyOCR Engine<br>• Fake Document Check</p></div>""", unsafe_allow_html=True)
+        with a2:
+            st.markdown("""<div class="arch-card"><div class="arch-header">2. Feature Agent</div><p style="color: #94a3b8; font-size: 0.85rem;">• Alternative Signals<br>• Cash Flow Velocity</p></div>""", unsafe_allow_html=True)
+        with a3:
+            st.markdown("""<div class="arch-card"><div class="arch-header">3. Scoring Agent</div><p style="color: #94a3b8; font-size: 0.85rem;">• XGBoost / Random Forest<br>• SHAP Explainability</p></div>""", unsafe_allow_html=True)
+        with a4:
+            st.markdown("""<div class="arch-card"><div class="arch-header">4. Governance Agent</div><p style="color: #94a3b8; font-size: 0.85rem;">• DPDP Act Compliance<br>• Automated PDF Sanction</p></div>""", unsafe_allow_html=True)
