@@ -7,3 +7,4 @@ shap>=0.44.0
 matplotlib>=3.7.0
 plotly>=5.18.0
 requests>=2.31.0
+fpdf
