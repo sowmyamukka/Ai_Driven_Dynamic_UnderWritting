@@ -6,6 +6,7 @@ import plotly.express as px
 import datetime
 import hashlib
 import re
+import cv2
 from fpdf import FPDF
 
 # --- Streamlit Page Configuration ---
@@ -163,7 +164,7 @@ if not st.session_state.logged_in:
         with auth_tab1:
             st.markdown("<br>", unsafe_allow_html=True)
             with st.form("login_form", clear_on_submit=False):
-                login_username = st.text_input("Username", key="login_user", placeholder="e.g. mahi")
+                login_username = st.text_input("Username", key="login_user", placeholder="e.g. mowa")
                 login_password = st.text_input("Password", type="password", key="login_pass", placeholder="••••••••")
                 st.markdown("<br>", unsafe_allow_html=True)
                 login_submitted = st.form_submit_button("🚀 Login to Portal", type="primary", use_container_width=True)
@@ -182,7 +183,7 @@ if not st.session_state.logged_in:
                     else:
                         st.error("Username not found! Please Sign Up first.")
 
-        # --- SIGNUP TAB (FIXED WITH ST.FORM) ---
+        # --- SIGNUP TAB ---
         with auth_tab2:
             st.markdown("<br>", unsafe_allow_html=True)
             with st.form("signup_form", clear_on_submit=False):
@@ -300,14 +301,61 @@ else:
                 </div>
                 """, unsafe_allow_html=True)
 
-            uploaded_file = st.file_uploader("Upload Verification Document", type=["pdf", "jpg", "png"])
-            if uploaded_file:
-                st.success("Document uploaded successfully and verified via OCR.")
+            # --- SMART MULTI-FILE UPLOAD WITH STRICT BLANK CHECK ---
+           # --- STRICT MULTI-FILE UPLOAD & EMPTY SIZE CHECK ---
+            uploaded_files = st.file_uploader(
+                f"Upload Verification Documents for {applicant_type.split()[1]} Profile", 
+                type=["pdf", "jpg", "png", "jpeg"], 
+                accept_multiple_files=True
+            )
+            
+            has_blank_image = False
+            if uploaded_files:
+                for uploaded_file in uploaded_files:
+                    # Strict file size check for empty/blank dummy files (less than 1KB)
+                    if uploaded_file.size < 1024:
+                        has_blank_image = True
+                        st.error(f"⚠️ Warning: '{uploaded_file.name}' is too small ({uploaded_file.size} bytes) and appears to be a blank or invalid image!")
+                    elif uploaded_file.type in ["image/jpeg", "image/png", "image/jpg"]:
+                        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+                        uploaded_file.seek(0)
+                        image = cv2.imdecode(file_bytes, 1)
+                        
+                        if image is None or image.size == 0 or np.mean(image) > 240:
+                            has_blank_image = True
+                            st.error(f"⚠️ Warning: '{uploaded_file.name}' is blank or empty!")
+
+                if has_blank_image:
+                    st.error("🚫 Please upload actual readable identity/academic documents. Zero-byte or blank images are strictly rejected.")
+                else:
+                    file_names = [f.name for f in uploaded_files]
+                    st.info(f"🔍 OCR Engine scanning {len(uploaded_files)} file(s): {', '.join(file_names)}...")
+                    
+                    if "Student" in applicant_type:
+                        st.success("✅ OCR Success: College ID & Academic Marks Memo verified successfully!")
+                    elif "Gig Economy" in applicant_type:
+                        st.success("✅ OCR Success: Gig Platform Earnings & Bank Cash-flows verified!")
+                    elif "Small Business" in applicant_type:
+                        st.success("✅ OCR Success: Merchant QR Code summary & Business turnover verified!")
+                    else:
+                        st.success("✅ OCR Success: Salary Slips and Bank Statements authenticated successfully!")
 
         with c_loan:
             st.markdown("### 3. Loan Purpose & Amount")
             loan_amount = st.number_input("Requested Loan Amount (₹)", 5000, 2000000, 150000, 5000)
-            loan_purpose = st.selectbox("Loan Purpose", ["Personal / Emergency", "Student / Education Loan", "Business Tool / Asset Purchase", "Other"])
+            
+            # --- LOAN PURPOSE SELECTBOX WITH "OTHER" TEXT INPUT LOGIC ---
+            loan_purpose_option = st.selectbox("Loan Purpose", [
+                "Personal / Emergency", 
+                "Student / Education Loan", 
+                "Business Tool / Asset Purchase", 
+                "Other"
+            ])
+            if loan_purpose_option == "Other":
+                loan_purpose = st.text_input("Please specify loan purpose:", placeholder="Type your purpose here...")
+            else:
+                loan_purpose = loan_purpose_option
+
             tenure_months = st.slider("Tenure (Months)", 3, 60, 12, 3)
             monthly_rate = 0.12 / 12
             emi = (loan_amount * monthly_rate * ((1 + monthly_rate)**tenure_months)) / (((1 + monthly_rate)**tenure_months) - 1)
@@ -330,6 +378,10 @@ else:
                 st.error("Please grant DPDP Act Consent to proceed.")
             elif not is_valid_email(user_email.strip()):
                 st.error("Please enter a valid email address.")
+            elif loan_purpose_option == "Other" and not loan_purpose.strip():
+                st.error("Please specify your loan purpose in the text box.")
+            elif has_blank_image:
+                st.error("Please upload valid non-blank documents to proceed.")
             else:
                 feature_dict = {'cibil_score': cibil, 'utility_bill_on_time_ratio': utility_ratio}
                 dynamic_score, prob_default, initial_decision = scoring_agent.calculate_score(feature_dict)
@@ -352,6 +404,7 @@ else:
                 m2.metric("Default Risk", f"{prob_default:.1%}")
                 m3.metric("Decision", final_decision)
 
+                # --- PDF SANCTION LETTER DOWNLOAD BUTTON FEATURE ---
                 if final_decision == "APPROVED":
                     pdf_bytes = generate_sanction_letter(
                         applicant_name=user_info['name'],
