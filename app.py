@@ -164,7 +164,7 @@ if not st.session_state.logged_in:
         with auth_tab1:
             st.markdown("<br>", unsafe_allow_html=True)
             with st.form("login_form", clear_on_submit=False):
-                login_username = st.text_input("Username", key="login_user", placeholder="e.g. mowa")
+                login_username = st.text_input("Username", key="login_user", placeholder="e.g. name")
                 login_password = st.text_input("Password", type="password", key="login_pass", placeholder="••••••••")
                 st.markdown("<br>", unsafe_allow_html=True)
                 login_submitted = st.form_submit_button("🚀 Login to Portal", type="primary", use_container_width=True)
@@ -187,7 +187,7 @@ if not st.session_state.logged_in:
         with auth_tab2:
             st.markdown("<br>", unsafe_allow_html=True)
             with st.form("signup_form", clear_on_submit=False):
-                new_name = st.text_input("Full Name", key="su_name", placeholder="e.g. Sowmya Mukka")
+                new_name = st.text_input("Full Name", key="su_name", placeholder="e.g. sowmya mukka")
                 new_username = st.text_input("Choose Username", key="su_user", placeholder="e.g. somu")
                 new_email = st.text_input("Gmail / Email Address", key="su_email", placeholder="e.g. sowmya143@gmail.com")
                 new_password = st.text_input("Choose Password", type="password", key="su_pass")
