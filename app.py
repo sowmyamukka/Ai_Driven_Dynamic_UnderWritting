@@ -144,7 +144,7 @@ scoring_agent = DummyScoringAgent()
 
 
 # ==============================================================================
-# CENTERED LOGIN & SIGNUP SCREEN (FIXED WITH ST.FORM)
+# CENTERED LOGIN & SIGNUP SCREEN
 # ==============================================================================
 if not st.session_state.logged_in:
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -187,7 +187,7 @@ if not st.session_state.logged_in:
         with auth_tab2:
             st.markdown("<br>", unsafe_allow_html=True)
             with st.form("signup_form", clear_on_submit=False):
-                new_name = st.text_input("Full Name", key="su_name", placeholder="e.g. sowmya mukka")
+                new_name = st.text_input("Full Name", key="su_name", placeholder="e.g. Sowmya Mukka")
                 new_username = st.text_input("Choose Username", key="su_user", placeholder="e.g. somu")
                 new_email = st.text_input("Gmail / Email Address", key="su_email", placeholder="e.g. sowmya143@gmail.com")
                 new_password = st.text_input("Choose Password", type="password", key="su_pass")
@@ -301,50 +301,46 @@ else:
                 </div>
                 """, unsafe_allow_html=True)
 
-            # --- SMART MULTI-FILE UPLOAD WITH STRICT BLANK CHECK ---
-           # --- STRICT MULTI-FILE UPLOAD & EMPTY SIZE CHECK ---
+            # --- SMART FILENAME & CONTENT VALIDATION ---
+        # --- UPDATED SMART VALIDATION LOGIC ---
             uploaded_files = st.file_uploader(
                 f"Upload Verification Documents for {applicant_type.split()[1]} Profile", 
                 type=["pdf", "jpg", "png", "jpeg"], 
                 accept_multiple_files=True
             )
             
-            has_blank_image = False
-            if uploaded_files:
+            has_invalid_image = False
+            # Check 1: Mandatory File Upload Check
+            if not uploaded_files:
+                st.warning("⚠️ Please upload your documents to proceed with verification.")
+            else:
                 for uploaded_file in uploaded_files:
-                    # Strict file size check for empty/blank dummy files (less than 1KB)
+                    # Check 2: Blank/Small file check
                     if uploaded_file.size < 1024:
-                        has_blank_image = True
-                        st.error(f"⚠️ Warning: '{uploaded_file.name}' is too small ({uploaded_file.size} bytes) and appears to be a blank or invalid image!")
-                    elif uploaded_file.type in ["image/jpeg", "image/png", "image/jpg"]:
+                        has_invalid_image = True
+                        st.error(f"⚠️ Warning: '{uploaded_file.name}' is blank/invalid!")
+                    else:
+                        fname_lower = uploaded_file.name.lower()
+                        # Keywords list (includes place/location markers)
+                        valid_keywords = ['id', 'student', 'mark', 'memo', 'fee', 'bonafide', 'card', 'report', 'statement', 'income', 'aadhaar', 'salary', 'slip', 'qr', 'shop', 'business', 'place', 'location', 'city', 'address']
+                        is_likely_doc = any(keyword in fname_lower for keyword in valid_keywords)
+                        
                         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
                         uploaded_file.seek(0)
                         image = cv2.imdecode(file_bytes, 1)
                         
-                        if image is None or image.size == 0 or np.mean(image) > 240:
-                            has_blank_image = True
-                            st.error(f"⚠️ Warning: '{uploaded_file.name}' is blank or empty!")
-
-                if has_blank_image:
-                    st.error("🚫 Please upload actual readable identity/academic documents. Zero-byte or blank images are strictly rejected.")
-                else:
-                    file_names = [f.name for f in uploaded_files]
-                    st.info(f"🔍 OCR Engine scanning {len(uploaded_files)} file(s): {', '.join(file_names)}...")
-                    
-                    if "Student" in applicant_type:
-                        st.success("✅ OCR Success: College ID & Academic Marks Memo verified successfully!")
-                    elif "Gig Economy" in applicant_type:
-                        st.success("✅ OCR Success: Gig Platform Earnings & Bank Cash-flows verified!")
-                    elif "Small Business" in applicant_type:
-                        st.success("✅ OCR Success: Merchant QR Code summary & Business turnover verified!")
-                    else:
-                        st.success("✅ OCR Success: Salary Slips and Bank Statements authenticated successfully!")
+                        # Blank image check
+                        if image is None or np.mean(image) > 240:
+                            has_invalid_image = True
+                            st.error(f"⚠️ '{uploaded_file.name}' is a blank document!")
+                        elif not is_likely_doc:
+                            has_invalid_image = True
+                            st.error(f"❌ '{uploaded_file.name}' does not contain required verification details (Place/ID/Marks).")
 
         with c_loan:
             st.markdown("### 3. Loan Purpose & Amount")
             loan_amount = st.number_input("Requested Loan Amount (₹)", 5000, 2000000, 150000, 5000)
             
-            # --- LOAN PURPOSE SELECTBOX WITH "OTHER" TEXT INPUT LOGIC ---
             loan_purpose_option = st.selectbox("Loan Purpose", [
                 "Personal / Emergency", 
                 "Student / Education Loan", 
@@ -380,8 +376,10 @@ else:
                 st.error("Please enter a valid email address.")
             elif loan_purpose_option == "Other" and not loan_purpose.strip():
                 st.error("Please specify your loan purpose in the text box.")
-            elif has_blank_image:
-                st.error("Please upload valid non-blank documents to proceed.")
+            elif not uploaded_files:
+                st.error("🚫 Document Upload Required: Please upload your mandatory verification documents before processing!")
+            elif has_invalid_image:
+                st.error("Please upload valid professional/academic documents to proceed.")
             else:
                 feature_dict = {'cibil_score': cibil, 'utility_bill_on_time_ratio': utility_ratio}
                 dynamic_score, prob_default, initial_decision = scoring_agent.calculate_score(feature_dict)
@@ -404,7 +402,6 @@ else:
                 m2.metric("Default Risk", f"{prob_default:.1%}")
                 m3.metric("Decision", final_decision)
 
-                # --- PDF SANCTION LETTER DOWNLOAD BUTTON FEATURE ---
                 if final_decision == "APPROVED":
                     pdf_bytes = generate_sanction_letter(
                         applicant_name=user_info['name'],
