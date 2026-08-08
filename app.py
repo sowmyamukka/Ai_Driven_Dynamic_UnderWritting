@@ -249,7 +249,7 @@ if not st.session_state.logged_in:
         with auth_tab1:
             st.markdown("<br>", unsafe_allow_html=True)
             with st.form("login_form", clear_on_submit=False):
-                login_username = st.text_input("Username", key="login_user", placeholder="e.g. mowa")
+                login_username = st.text_input("Username", key="login_user", placeholder="e.g. name")
                 login_password = st.text_input("Password", type="password", key="login_pass", placeholder="••••••••")
                 st.markdown("<br>", unsafe_allow_html=True)
                 login_submitted = st.form_submit_button("🚀 Login to Portal", type="primary", use_container_width=True)
